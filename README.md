@@ -38,4 +38,11 @@ This is **tamper-evident**, not tamper-proof. The proof comes from independent c
    ```
 
    It prints PASS/FAIL for three checks: **A1** the hash chain recomputes with no gaps or edits, **A2** cash, realized and unrealized P&L and NAV recompute from the recorded fills, closes and marks, **A3** every anchored head hash matches the ledger and the anchor files in this repo.
-3. To check a timestamp proof against Bitcoin directly, use the [OpenTimestamps client](https://github.com/opentimestamps/opentimestamps-client): `ots verify anchors/<date>/<file>.json.ots`, or drop the `.json` and `.ots` files into [opentimestamps.org](https://opentimestamps.org). A proof shows as pending until Bitcoin confirms it (usually within hours), then this repo upgrades it automatically.
+3. Optional: check that the simulated fills were realistic. `verify/verify-quotes.mjs` looks up the real historical bid/ask for each option fill from Databento (needs your own Databento key), prints the cost estimate first, and refuses to download above a limit:
+
+   ```
+   DATABENTO_API_KEY=... node verify/verify-quotes.mjs stoxess-track-record-export.json --cost-only
+   DATABENTO_API_KEY=... node verify/verify-quotes.mjs stoxess-track-record-export.json --sample 10
+   ```
+
+4. To check a timestamp proof against Bitcoin directly, use the [OpenTimestamps client](https://github.com/opentimestamps/opentimestamps-client): `ots verify anchors/<date>/<file>.json.ots`, or drop the `.json` and `.ots` files into [opentimestamps.org](https://opentimestamps.org). A proof shows as pending until Bitcoin confirms it (usually within hours), then this repo upgrades it automatically.
