@@ -167,7 +167,7 @@ export async function checkAnchors(exp, { fetchBytes, offline }) {
     if (!offline) {
         const repo = exp.github_repo;
         const gh = anchors.filter((a) => a.method === "github" && a.proof);
-        let confirmed = 0, pending = 0, unreachable = 0;
+        let confirmed = 0, pending = 0, unreachable = 0, tsrOk = 0, tsrNone = 0;
         for (const a of gh) {
             const seq = Number(a.head_seq);
             const raw = await fetchBytes(`https://raw.githubusercontent.com/${repo}/main/${a.proof}`);
@@ -180,8 +180,14 @@ export async function checkAnchors(exp, { fetchBytes, offline }) {
             const ots = await fetchBytes(`https://raw.githubusercontent.com/${repo}/main/${a.proof}.ots`);
             if (!ots) problems.push(`${a.proof}.ots: timestamp proof missing`);
             else if (ots.includes(BITCOIN_TAG)) confirmed++; else pending++;
+            const tsr = await fetchBytes(`https://raw.githubusercontent.com/${repo}/main/${a.proof}.tsr`);
+            if (!tsr) tsrNone++;
+            else if (tsr.includes(createHash("sha256").update(raw).digest())) tsrOk++;
+            else problems.push(`${a.proof}.tsr: the RFC 3161 token does not contain this anchor file's SHA-256`);
         }
         notes.push(`${gh.length} public anchor files read (${unreachable} unreachable); timestamp proofs: ${confirmed} carry a Bitcoin attestation, ${pending} still pending`);
+        notes.push(`RFC 3161 signed timestamps: ${tsrOk} present and matching, ${tsrNone} none (anchors made before it was added have none)`);
+        if (tsrOk > 0) notes.push("to check a signature: openssl ts -verify -data <anchor>.json -in <anchor>.json.tsr -CAfile <trusted roots>");
         if (confirmed > 0) notes.push("to independently confirm a proof against Bitcoin, run the OpenTimestamps client:  ots verify <anchor>.json.ots");
     } else notes.push("GitHub checks skipped (--offline)");
 
