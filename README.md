@@ -6,13 +6,13 @@ Public, tamper-evident timestamps for the **AI: Auto Income** paper-trading reco
 
 ## Status
 
-**Not live yet.** The ledger this repo anchors is still being built. When it starts, its start date will be recorded here as the **"verified since"** date. Everything before that date is unverified and will be labeled that way on the site.
+**Live.** The ledger started on **2026-09-21** (its "verified since" date). Everything before that date is unverified and labeled that way on the site. Anchors are added here automatically on trading days.
 
-## What this repo will hold
+## What this repo holds
 
 - `anchors/` — one small file per anchor: the date, the ledger's latest sequence number, and its head hash. Hashes only. No trades, no picks, nothing about how picks are chosen.
 - `anchors/*.ots` — an [OpenTimestamps](https://opentimestamps.org) proof for each anchor file, backed by the Bitcoin blockchain.
-- `verify/` — an open script anyone can run to recheck the ledger against these anchors. (Coming with the verification step.)
+- `verify/verify-track-record.mjs` — an open, zero-dependency script that rechecks a downloaded ledger export: the hash chain, the cash/P&L/NAV arithmetic, and these anchors.
 
 ## How it works
 
@@ -28,8 +28,14 @@ Cannot show: that a paper fill would have executed in the real market, or anythi
 
 This is **tamper-evident**, not tamper-proof. The proof comes from independent copies (Bitcoin, GitHub's public event archive, mirrors), not from trusting Stoxess.
 
-## Checking an anchor yourself
+## Verifying the record yourself
 
-1. Take an anchor file and its `.ots` proof.
-2. Drop both into [opentimestamps.org](https://opentimestamps.org) (or use the command-line client with a Bitcoin node).
-3. It confirms the file existed before the stated Bitcoin block.
+1. On stoxess.com/app/income/paper (signed in), use **Download verification bundle**. It is one JSON file with the full ledger.
+2. Run the verifier (Node 18+, nothing to install):
+
+   ```
+   node verify/verify-track-record.mjs stoxess-track-record-export.json
+   ```
+
+   It prints PASS/FAIL for three checks: **A1** the hash chain recomputes with no gaps or edits, **A2** cash, realized and unrealized P&L and NAV recompute from the recorded fills, closes and marks, **A3** every anchored head hash matches the ledger and the anchor files in this repo.
+3. To check a timestamp proof against Bitcoin directly, use the [OpenTimestamps client](https://github.com/opentimestamps/opentimestamps-client): `ots verify anchors/<date>/<file>.json.ots`, or drop the `.json` and `.ots` files into [opentimestamps.org](https://opentimestamps.org). A proof shows as pending until Bitcoin confirms it (usually within hours), then this repo upgrades it automatically.
