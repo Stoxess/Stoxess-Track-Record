@@ -34,7 +34,7 @@ export function entryHash(r) {
 // ── A1 ──────────────────────────────────────────────────────────────
 export function checkChain(ledger) {
     const bad = [];
-    let prev = null;
+    let prev = null, redacted = 0;
     for (const r of ledger) {
         if (prev === null) {
             if (Number(r.seq) !== 1 || r.prev_hash !== "0".repeat(64)) bad.push(`seq ${r.seq}: bad first link`);
@@ -42,13 +42,20 @@ export function checkChain(ledger) {
             if (Number(r.seq) !== Number(prev.seq) + 1) bad.push(`seq ${r.seq}: gap or reorder after ${prev.seq}`);
             if (r.prev_hash !== prev.hash) bad.push(`seq ${r.seq}: prev_hash does not match previous entry`);
         }
-        if (entryHash(r) !== r.hash) bad.push(`seq ${r.seq}: hash does not match contents (edited?)`);
+        // A redacted entry (a strategy-describing DECISION/GENESIS) had its text removed from
+        // the export, so its own hash cannot be recomputed; its links to both neighbours are
+        // still checked above and below, and the anchored head hashes cover it (A3).
+        // Only these types may be redacted; a redacted flag on a FILL, CLOSE, EOD_MARKS etc. is ignored.
+        if (r.redacted && ["DECISION", "CONFIG", "GENESIS"].includes(r.event_type)) redacted++;
+        else if (entryHash(r) !== r.hash) bad.push(`seq ${r.seq}: hash does not match contents (edited?)`);
         try { JSON.parse(r.payload_text); } catch { bad.push(`seq ${r.seq}: payload is not valid JSON`); }
         prev = r;
     }
     return {
         id: "A1", name: "Hash chain intact", ok: bad.length === 0,
-        detail: bad.length ? bad.slice(0, 10).join("; ") : `${ledger.length} entries, chain recomputes end to end`,
+        detail: bad.length ? bad.slice(0, 10).join("; ")
+            : redacted === 0 ? `${ledger.length} entries, chain recomputes end to end`
+            : `${ledger.length} entries: ${ledger.length - redacted} recompute from their contents, ${redacted} are redacted (strategy detail withheld) and are checked for their links only; the chain is unbroken end to end`,
     };
 }
 
